@@ -1,150 +1,107 @@
-# AirStrike - WiFi Security Auditing Tool
+# AirStrike
 
-**Version:** 3.0  
-**Author:** Security Professional  
-**Platform:** Linux (Kali recommended)  
-**Language:** Python 3
+AirStrike is a Linux desktop application for authorized Wi-Fi security auditing.  
+It provides a guided workflow for:
 
-> ⚠️ This tool is for **authorized security testing only**.  
-> Only test networks you own or have explicit written permission to test.
+1. Enabling monitor mode
+2. Scanning nearby access points and stations
+3. Capturing WPA/WPA2 handshakes
+4. Running offline password auditing with hashcat
 
----
+## Legal Notice
 
-## Project Structure
+Use this project only on networks you own or where you have explicit written permission. Unauthorized use may be illegal.
 
-```
-AirStrike/
-│
-├── main.py                  # Entry point — run this to launch AirStrike
-│
-├── core/                    # Backend logic (no UI code here)
-│   ├── monitor.py           # Wireless device & monitor mode control
-│   ├── scanner.py           # WiFi network discovery (airodump-ng)
-│   ├── capture.py           # WPA2 handshake capture
-│   ├── deauth.py            # Deauthentication attack
-│   └── cracker.py           # Password cracking (hashcat)
-│
-├── ui/                      # Frontend GUI (tkinter)
-│   ├── app.py               # Main window — assembles all tabs
-│   ├── device_tab.py        # Device Management tab
-│   ├── scan_tab.py          # Network Scan tab
-│   ├── capture_tab.py       # Handshake Capture tab
-│   └── crack_tab.py         # Password Cracking tab
-│
-└── utils/                   # Shared utilities
-    ├── logger.py            # Centralized logging setup
-    ├── validator.py         # Input validation (prevents injection)
-    └── disclaimer.py        # Legal disclaimer prompt
-```
+## Features
 
----
+1. Tkinter GUI with separate tabs for device setup, scanning, capture, and cracking.
+2. WPA handshake validation using `aircrack-ng` output from capture files.
+3. Cross-distro privileged command handling (works when running as root, with `sudo`, or with `doas`).
+4. Optional auto-assist deauth bursts during capture (available in UI, off by default).
+5. Crack workflow protections to prevent duplicate runs from repeated button clicks.
+6. Capture output written to the local `captures` directory (auto-created if missing).
 
 ## Requirements
 
-### System
-- Linux (Kali Linux recommended)
-- Python 3.8+
-- Root privileges (`sudo`)
+1. Linux
+2. Python 3.8+
+3. Root privileges for monitor/capture operations
+4. Installed tools:
+   - `aircrack-ng` suite (`airmon-ng`, `airodump-ng`, `aireplay-ng`, `aircrack-ng`)
+   - `hashcat`
+   - `hcxpcapngtool` (recommended) or `cap2hccapx`
 
-### Tools
+### Install on Debian/Ubuntu/Kali
+
 ```bash
 sudo apt update
-sudo apt install aircrack-ng hashcat
+sudo apt install -y aircrack-ng hashcat hcxtools
 ```
 
-### Python
-No external Python packages required — uses standard library only.
-
----
-
-## Installation & Setup
+## Quick Start
 
 ```bash
-# 1. Clone or download the project
-git clone https://github.com/yourname/AirStrike.git
+git clone https://github.com/<your-username>/AirStrike.git
 cd AirStrike
-
-# 2. Allow root to use your display (required for GUI with sudo)
-xhost +local:root
-
-# 3. Run AirStrike
-sudo python main.py
+sudo python3 main.py
 ```
 
----
+If GUI display access fails under sudo on X11, allow root display access first:
 
-## How to Use
+```bash
+xhost +local:root
+```
 
-### Step 1 — Device Management
-- Click **Refresh Devices** to list your wireless interfaces
-- Click **Enable Monitor Mode** to put your adapter into monitor mode
-- Monitor mode allows capturing all WiFi packets, not just your own
+## Usage Flow
 
-### Step 2 — Network Scan
-- Go to the **Network Scan** tab
-- Click **Start Scan** — nearby networks appear in the table
-- Click **Stop Scan** when done
-- Networks are automatically loaded into the Capture tab
+1. Open Device Management and click Refresh Devices.
+2. Enable monitor mode.
+3. Start a scan in Network Scan and wait for targets to populate.
+4. In Handshake Capture, select target, verify channel, and start capture.
+5. Trigger deauth manually (or enable auto-assist checkbox if desired).
+6. Wait for status to show handshake captured.
+7. In Password Cracking, load captured file and start Dictionary or Brute Force mode.
 
-### Step 3 — Handshake Capture
-- Go to the **Handshake Capture** tab
-- Select your target network from the dropdown
-- Enter the channel number
-- Click **Start Capture**
-- Use **Send Deauth** or **Continuous Deauth** to force clients to reconnect
-  (this triggers the WPA2 handshake)
-- Status turns green when handshake is captured
+## Project Structure
 
-### Step 4 — Password Cracking
-- Go to the **Password Cracking** tab
-- Click **Use Captured File** to load the handshake automatically
-- Choose attack type:
-  - **Dictionary**: Try every word in a wordlist (fast, recommended)
-  - **Brute Force**: Try all character combinations (slow but thorough)
-- Click **Start Cracking**
-
----
-
-## How It Works (Technical)
-
-### Monitor Mode
-Standard WiFi adapters only receive packets addressed to them.
-Monitor mode allows the adapter to capture ALL packets in range.
-`airmon-ng check kill` is run first to stop NetworkManager and
-wpa_supplicant from interfering.
-
-### WPA2 Handshake
-When a client connects to a WPA2 network, it performs a 4-way handshake
-with the access point to authenticate. AirStrike captures this handshake
-by listening on the target channel. A deauth attack forces connected
-clients to disconnect and reconnect, triggering a fresh handshake.
-
-### CSV Scanning Fix
-`airodump-ng` uses a curses terminal UI — its stdout cannot be parsed
-line by line. AirStrike uses `--output-format csv` to write results to
-a file and reads that file every 2 seconds instead.
-
-### Password Cracking
-The captured `.cap` file is converted to `.hccapx` format (hashcat input).
-Hashcat then attempts to find the password using the chosen attack mode.
-Mode `2500` = WPA/WPA2 handshake cracking.
-
----
+```text
+AirStrike/
+├── main.py
+├── core/
+│   ├── monitor.py
+│   ├── scanner.py
+│   ├── capture.py
+│   ├── deauth.py
+│   └── cracker.py
+├── ui/
+│   ├── app.py
+│   ├── device_tab.py
+│   ├── scan_tab.py
+│   ├── capture_tab.py
+│   └── crack_tab.py
+└── utils/
+    ├── commands.py
+    ├── logger.py
+    ├── validator.py
+    └── disclaimer.py
+```
 
 ## Troubleshooting
 
-| Problem | Fix |
-|---|---|
-| `couldn't connect to display` | Run `xhost +local:root` before sudo |
-| Scan shows no networks | Make sure monitor mode is enabled first |
-| Monitor mode fails | Run `sudo airmon-ng check kill` manually first |
-| Missing tools error | Run `sudo apt install aircrack-ng hashcat` |
+| Problem | Likely Cause | Fix |
+|---|---|---|
+| No networks found | Wrong interface mode | Enable monitor mode and re-scan |
+| Capture times out | No reconnect traffic | Send small deauth bursts and keep capture running longer |
+| Handshake appears in UI but not crackable | Incomplete capture | Re-capture and confirm with `aircrack-ng <file.cap>` shows `WPA (1 handshake)` or more |
+| Converter error | Missing converter tool | Install `hcxtools` or `cap2hccapx` |
+| Cracking starts multiple times | Multiple button clicks | Use single run; app now locks while cracking |
 
----
+## Notes for Contributors
 
-## Legal Disclaimer
+1. Keep commits focused and small.
+2. Do not commit wordlists, capture files, or generated hash artifacts.
+3. Respect legal-use boundaries in examples, docs, and issues.
 
-This tool is intended for **authorized penetration testing only**.
-Unauthorized use against networks you do not own is illegal and may
-result in criminal prosecution. The author takes no responsibility
-for misuse of this tool.
+## Disclaimer
+
+This project is provided for educational and authorized security testing use. The maintainers are not responsible for misuse.
