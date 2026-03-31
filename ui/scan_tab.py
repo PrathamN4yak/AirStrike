@@ -31,58 +31,69 @@ class ScanTab:
 
     def _build_ui(self):
         """Build all widgets for the Network Scan tab."""
+        self.frame.configure(padding=(14, 12, 14, 12))
+
+        intro = ttk.Label(
+            self.frame,
+            text="Discover nearby access points and active client stations in monitor mode."
+        )
+        intro.grid(row=0, column=0, columnspan=3, sticky='w', pady=(0, 10))
+
         # Scan control buttons
         btn_frame = ttk.Frame(self.frame)
-        btn_frame.grid(row=0, column=0, columnspan=3, sticky='w', padx=5, pady=5)
+        btn_frame.grid(row=1, column=0, columnspan=3, sticky='w', pady=(0, 12))
 
         ttk.Button(btn_frame, text="Start Scan",
-                   command=self.start_scan).pack(side='left', padx=5)
+                   command=self.start_scan).pack(side='left', padx=(0, 8))
         ttk.Button(btn_frame, text="Stop Scan",
-                   command=self.stop_scan).pack(side='left', padx=5)
+                   command=self.stop_scan).pack(side='left')
+
+        self.scan_state = tk.StringVar(value="Status: Idle")
+        ttk.Label(btn_frame, textvariable=self.scan_state).pack(side='left', padx=(14, 0))
 
         # --- Access Points table ---
         ttk.Label(self.frame, text="Access Points (Networks):").grid(
-            row=1, column=0, columnspan=3, sticky='w', padx=5
+            row=2, column=0, columnspan=3, sticky='w'
         )
         self.network_tree = ttk.Treeview(
             self.frame,
             columns=('BSSID', 'Channel', 'ESSID', 'Security'),
             show='headings',
-            height=8
+            height=9
         )
         for col in ('BSSID', 'Channel', 'ESSID', 'Security'):
             self.network_tree.heading(col, text=col)
             self.network_tree.column(col, width=160)
-        self.network_tree.grid(row=2, column=0, columnspan=2, padx=5, pady=2, sticky='nsew')
+        self.network_tree.grid(row=3, column=0, columnspan=2, pady=(3, 0), sticky='nsew')
 
         ap_scroll = ttk.Scrollbar(self.frame, orient='vertical',
                                    command=self.network_tree.yview)
-        ap_scroll.grid(row=2, column=2, sticky='ns')
+        ap_scroll.grid(row=3, column=2, sticky='ns')
         self.network_tree.configure(yscrollcommand=ap_scroll.set)
 
         # --- Connected Stations table ---
         ttk.Label(self.frame, text="Connected Stations (Clients):").grid(
-            row=3, column=0, columnspan=3, sticky='w', padx=5, pady=(10, 0)
+            row=4, column=0, columnspan=3, sticky='w', pady=(12, 0)
         )
         self.station_tree = ttk.Treeview(
             self.frame,
             columns=('Station MAC', 'Associated BSSID', 'Power', 'Probes'),
             show='headings',
-            height=6
+            height=7
         )
         col_widths = {'Station MAC': 160, 'Associated BSSID': 160, 'Power': 70, 'Probes': 200}
         for col in ('Station MAC', 'Associated BSSID', 'Power', 'Probes'):
             self.station_tree.heading(col, text=col)
             self.station_tree.column(col, width=col_widths[col])
-        self.station_tree.grid(row=4, column=0, columnspan=2, padx=5, pady=2, sticky='nsew')
+        self.station_tree.grid(row=5, column=0, columnspan=2, pady=(3, 0), sticky='nsew')
 
         st_scroll = ttk.Scrollbar(self.frame, orient='vertical',
                                    command=self.station_tree.yview)
-        st_scroll.grid(row=4, column=2, sticky='ns')
+        st_scroll.grid(row=5, column=2, sticky='ns')
         self.station_tree.configure(yscrollcommand=st_scroll.set)
 
-        self.frame.grid_rowconfigure(2, weight=1)
-        self.frame.grid_rowconfigure(4, weight=1)
+        self.frame.grid_rowconfigure(3, weight=1)
+        self.frame.grid_rowconfigure(5, weight=1)
         self.frame.grid_columnconfigure(0, weight=1)
 
     def start_scan(self):
@@ -95,6 +106,7 @@ class ScanTab:
             self.station_tree.delete(item)
 
         self.log("Starting network scan...")
+        self.scan_state.set("Status: Scanning")
         self.scanner.start_scan(
             device,
             on_network_found=self._on_network_found,
@@ -105,6 +117,7 @@ class ScanTab:
     def stop_scan(self):
         """Stop the network scan."""
         self.scanner.stop_scan()
+        self.scan_state.set("Status: Stopping...")
         self.log("Scan stopped.")
 
     def get_networks(self):
@@ -128,6 +141,7 @@ class ScanTab:
 
     def _on_scan_complete(self):
         """Callback: called when scan finishes. Pushes networks to capture tab."""
+        self.scan_state.set("Status: Idle")
         self.log("Scan completed.")
         # Notify app.py to load networks into the capture tab target dropdown
         if self.on_scan_done:

@@ -30,68 +30,91 @@ class CrackTab:
 
     def _build_ui(self):
         """Build all widgets for the Password Cracking tab."""
+        self.frame.configure(padding=(14, 12, 14, 12))
+
+        intro = ttk.Label(
+            self.frame,
+            text="Run offline auditing against captured handshakes using dictionary or brute-force mode."
+        )
+        intro.grid(row=0, column=0, columnspan=4, sticky='w', pady=(0, 10))
+
         # Handshake file path input
         ttk.Label(self.frame, text="Handshake File:").grid(
-            row=0, column=0, padx=5, pady=5, sticky='w'
+            row=1, column=0, padx=(0, 8), pady=5, sticky='w'
         )
         self.handshake_path = ttk.Entry(self.frame, width=50)
-        self.handshake_path.grid(row=0, column=1, padx=5, pady=5)
+        self.handshake_path.grid(row=1, column=1, padx=(0, 8), pady=5, sticky='ew')
         ttk.Button(self.frame, text="Browse",
-                   command=self._browse_handshake).grid(row=0, column=2, padx=5, pady=5)
+                   command=self._browse_handshake).grid(row=1, column=2, padx=(0, 8), pady=5)
         ttk.Button(self.frame, text="Use Captured File",
-                   command=self._use_captured_file).grid(row=0, column=3, padx=5, pady=5)
+                   command=self._use_captured_file).grid(row=1, column=3, pady=5, sticky='ew')
 
         # Attack type selector
         ttk.Label(self.frame, text="Attack Type:").grid(
-            row=1, column=0, padx=5, pady=5, sticky='w'
+            row=2, column=0, padx=(0, 8), pady=5, sticky='w'
         )
         self.attack_type = ttk.Combobox(
             self.frame, values=['Brute Force', 'Dictionary'], width=20
         )
-        self.attack_type.grid(row=1, column=1, padx=5, pady=5, sticky='w')
+        self.attack_type.grid(row=2, column=1, padx=(0, 8), pady=5, sticky='w')
         self.attack_type.bind('<<ComboboxSelected>>', self._toggle_options)
 
-        # Brute force options panel
-        self.bf_frame = ttk.LabelFrame(self.frame, text="Brute Force Options")
-        self.bf_frame.grid(row=2, column=0, columnspan=3, padx=5, pady=5, sticky='ew')
+        self.run_status = tk.StringVar(value="Ready")
+        ttk.Label(self.frame, textvariable=self.run_status).grid(row=2, column=2, columnspan=2, sticky='w')
 
-        ttk.Label(self.bf_frame, text="Character Set:").grid(row=0, column=0, padx=5, pady=5)
+        # Brute force options panel
+        self.bf_frame = ttk.LabelFrame(self.frame, text="Brute Force Options", padding=(10, 8))
+        self.bf_frame.grid(row=3, column=0, columnspan=4, pady=(8, 8), sticky='ew')
+
+        ttk.Label(self.bf_frame, text="Character Set:").grid(row=0, column=0, padx=(0, 8), pady=5)
         self.charset = ttk.Combobox(self.bf_frame, values=list(CHARSET_MAP.keys()), width=35)
         self.charset.set('Letters + Numbers')
-        self.charset.grid(row=0, column=1, padx=5, pady=5)
+        self.charset.grid(row=0, column=1, padx=(0, 8), pady=5, sticky='w')
 
-        ttk.Label(self.bf_frame, text="Min Length:").grid(row=1, column=0, padx=5, pady=5)
+        ttk.Label(self.bf_frame, text="Min Length:").grid(row=1, column=0, padx=(0, 8), pady=5)
         self.min_length = ttk.Entry(self.bf_frame, width=10)
         self.min_length.insert(0, "8")
-        self.min_length.grid(row=1, column=1, padx=5, pady=5, sticky='w')
+        self.min_length.grid(row=1, column=1, padx=(0, 8), pady=5, sticky='w')
 
-        ttk.Label(self.bf_frame, text="Max Length:").grid(row=2, column=0, padx=5, pady=5)
+        ttk.Label(self.bf_frame, text="Max Length:").grid(row=2, column=0, padx=(0, 8), pady=5)
         self.max_length = ttk.Entry(self.bf_frame, width=10)
         self.max_length.insert(0, "12")
-        self.max_length.grid(row=2, column=1, padx=5, pady=5, sticky='w')
+        self.max_length.grid(row=2, column=1, padx=(0, 8), pady=5, sticky='w')
 
         # Dictionary options panel
-        self.dict_frame = ttk.LabelFrame(self.frame, text="Dictionary Options")
-        self.dict_frame.grid(row=3, column=0, columnspan=3, padx=5, pady=5, sticky='ew')
+        self.dict_frame = ttk.LabelFrame(self.frame, text="Dictionary Options", padding=(10, 8))
+        self.dict_frame.grid(row=4, column=0, columnspan=4, pady=(0, 8), sticky='ew')
 
-        ttk.Label(self.dict_frame, text="Wordlist File:").grid(row=0, column=0, padx=5, pady=5)
+        ttk.Label(self.dict_frame, text="Wordlist File:").grid(row=0, column=0, padx=(0, 8), pady=5)
         self.wordlist_path = ttk.Entry(self.dict_frame, width=50)
-        self.wordlist_path.grid(row=0, column=1, padx=5, pady=5)
+        self.wordlist_path.grid(row=0, column=1, padx=(0, 8), pady=5, sticky='ew')
         ttk.Button(self.dict_frame, text="Browse",
-                   command=self._browse_wordlist).grid(row=0, column=2, padx=5, pady=5)
+                   command=self._browse_wordlist).grid(row=0, column=2, pady=5)
         self.dict_frame.grid_remove()  # Hidden until Dictionary selected
 
         # Start button
         self.start_button = ttk.Button(self.frame, text="Start Cracking",
                            command=self.start_cracking)
-        self.start_button.grid(row=4, column=1, padx=5, pady=20)
+        self.start_button.grid(row=5, column=1, pady=(8, 12), sticky='w')
 
         # Results display
         ttk.Label(self.frame, text="Cracking Results:").grid(
-            row=5, column=0, padx=5, pady=5, sticky='w'
+            row=6, column=0, pady=(0, 4), sticky='w'
         )
-        self.crack_results = scrolledtext.ScrolledText(self.frame, height=15, width=80)
-        self.crack_results.grid(row=6, column=0, columnspan=4, padx=5, pady=5)
+        self.crack_results = scrolledtext.ScrolledText(
+            self.frame,
+            height=15,
+            width=80,
+            bg='#0b1118',
+            fg='#d8e8f4',
+            insertbackground='#d8e8f4',
+            relief='flat',
+            font=('DejaVu Sans Mono', 10)
+        )
+        self.crack_results.grid(row=7, column=0, columnspan=4, pady=(0, 2), sticky='nsew')
+
+        self.frame.grid_columnconfigure(1, weight=1)
+        self.frame.grid_rowconfigure(7, weight=1)
 
     def start_cracking(self):
         """Start the password cracking process."""
@@ -115,10 +138,12 @@ class CrackTab:
 
         if started:
             self.start_button.config(state='disabled')
+            self.run_status.set("Running")
 
     def _on_crack_complete(self):
         """Re-enable cracking controls after worker thread exits."""
         self.frame.after(0, lambda: self.start_button.config(state='normal'))
+        self.frame.after(0, lambda: self.run_status.set("Ready"))
 
     def _append_result(self, text):
         """Append text to the cracking results panel."""

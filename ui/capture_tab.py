@@ -34,57 +34,76 @@ class CaptureTab:
 
     def _build_ui(self):
         """Build all widgets for the Handshake Capture tab."""
+        self.frame.configure(padding=(14, 12, 14, 12))
+
+        intro = ttk.Label(
+            self.frame,
+            text="Capture WPA handshakes from a selected target network and validate capture quality."
+        )
+        intro.grid(row=0, column=0, columnspan=3, sticky='w', pady=(0, 10))
+
         # Target network selection
         ttk.Label(self.frame, text="Target Network:").grid(
-            row=0, column=0, padx=5, pady=5, sticky='w'
+            row=1, column=0, padx=(0, 8), pady=5, sticky='w'
         )
         self.target_combo = ttk.Combobox(self.frame, width=50)
-        self.target_combo.grid(row=0, column=1, padx=5, pady=5)
+        self.target_combo.grid(row=1, column=1, padx=(0, 8), pady=5, sticky='ew')
         self.target_combo.bind('<<ComboboxSelected>>', self._on_target_selected)
         ttk.Button(self.frame, text="Load from Scan",
-                   command=self._load_targets_prompt).grid(row=0, column=2, padx=5, pady=5)
+                   command=self._load_targets_prompt).grid(row=1, column=2, pady=5, sticky='ew')
 
         # Channel entry
         ttk.Label(self.frame, text="Channel:").grid(
-            row=1, column=0, padx=5, pady=5, sticky='w'
+            row=2, column=0, padx=(0, 8), pady=5, sticky='w'
         )
         self.channel_entry = ttk.Entry(self.frame, width=10)
-        self.channel_entry.grid(row=1, column=1, padx=5, pady=5, sticky='w')
+        self.channel_entry.grid(row=2, column=1, padx=(0, 8), pady=5, sticky='w')
 
         # Capture controls
-        ttk.Button(self.frame, text="Start Capture",
-                   command=self.start_capture).grid(row=2, column=0, padx=5, pady=5)
-        ttk.Button(self.frame, text="Stop Capture",
-                   command=self.stop_capture).grid(row=2, column=1, padx=5, pady=5)
+        control_frame = ttk.Frame(self.frame)
+        control_frame.grid(row=3, column=0, columnspan=2, sticky='w', pady=(8, 6))
+
+        ttk.Button(control_frame, text="Start Capture",
+                   command=self.start_capture).pack(side='left', padx=(0, 8))
+        ttk.Button(control_frame, text="Stop Capture",
+                   command=self.stop_capture).pack(side='left')
 
         self.auto_assist_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(
             self.frame,
             text="Auto-assist capture (send timed deauth bursts)",
             variable=self.auto_assist_var
-        ).grid(row=2, column=2, padx=5, pady=5, sticky='w')
+        ).grid(row=3, column=2, pady=(8, 6), sticky='w')
 
         # Deauth attack section
-        deauth_frame = ttk.LabelFrame(self.frame, text="Deauth Attack")
-        deauth_frame.grid(row=3, column=0, columnspan=3, padx=5, pady=5, sticky='ew')
+        deauth_frame = ttk.LabelFrame(self.frame, text="Deauth Controls", padding=(10, 8))
+        deauth_frame.grid(row=4, column=0, columnspan=3, pady=(8, 8), sticky='ew')
 
-        ttk.Label(deauth_frame, text="Packets:").grid(row=0, column=0, padx=5, pady=5)
+        ttk.Label(deauth_frame, text="Packets:").grid(row=0, column=0, padx=(0, 6), pady=5)
         self.packet_count = ttk.Entry(deauth_frame, width=10)
         self.packet_count.insert(0, "10")
-        self.packet_count.grid(row=0, column=1, padx=5, pady=5)
+        self.packet_count.grid(row=0, column=1, padx=(0, 8), pady=5)
 
         ttk.Button(deauth_frame, text="Send Deauth",
-                   command=self.send_deauth).grid(row=0, column=2, padx=5, pady=5)
+                   command=self.send_deauth).grid(row=0, column=2, padx=(0, 8), pady=5)
         ttk.Button(deauth_frame, text="Continuous Deauth",
-                   command=self.continuous_deauth).grid(row=0, column=3, padx=5, pady=5)
+                   command=self.continuous_deauth).grid(row=0, column=3, padx=(0, 8), pady=5)
         ttk.Button(deauth_frame, text="Stop Deauth",
-                   command=self.stop_deauth).grid(row=0, column=4, padx=5, pady=5)
+                   command=self.stop_deauth).grid(row=0, column=4, pady=5)
 
         # Capture status label
         self.capture_status = ttk.Label(
-            self.frame, text="Status: Not Capturing", foreground='red'
+            self.frame, text="Status: Not Capturing", foreground='#ef6b73', font=('DejaVu Sans', 11, 'bold')
         )
-        self.capture_status.grid(row=4, column=0, columnspan=3, padx=5, pady=5)
+        self.capture_status.grid(row=5, column=0, columnspan=3, sticky='w', pady=(4, 2))
+
+        self.capture_hint = ttk.Label(
+            self.frame,
+            text="Tip: Small deauth bursts are usually better than aggressive continuous spam."
+        )
+        self.capture_hint.grid(row=6, column=0, columnspan=3, sticky='w', pady=(0, 2))
+
+        self.frame.grid_columnconfigure(1, weight=1)
 
         # Captured file path (used by crack tab)
         self.captured_file_path = tk.StringVar()
