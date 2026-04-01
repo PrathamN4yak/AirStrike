@@ -6,7 +6,7 @@ Talks to core/scanner.py for all backend operations.
 """
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from core.scanner import NetworkScanner
 
 
@@ -24,6 +24,8 @@ class ScanTab:
         self.get_device   = get_device_callback
         self.scanner      = NetworkScanner()
         self.on_scan_done = None  # Set by app.py to push networks to capture tab
+        self.scan_timeout = tk.StringVar(value="60")
+        self.disable_timeout = tk.BooleanVar(value=False)
 
         self.frame = ttk.Frame(notebook)
         notebook.add(self.frame, text="Network Scan")
@@ -47,6 +49,17 @@ class ScanTab:
                    command=self.start_scan).pack(side='left', padx=(0, 8))
         ttk.Button(btn_frame, text="Stop Scan",
                    command=self.stop_scan).pack(side='left')
+
+        ttk.Label(btn_frame, text="Timeout (sec):").pack(side='left', padx=(14, 6))
+        self.timeout_entry = ttk.Entry(btn_frame, textvariable=self.scan_timeout, width=7)
+        self.timeout_entry.pack(side='left')
+        self.no_timeout_check = ttk.Checkbutton(
+            btn_frame,
+            text="Disable Auto Timeout",
+            variable=self.disable_timeout,
+            command=self._on_timeout_toggle
+        )
+        self.no_timeout_check.pack(side='left', padx=(10, 0))
 
         self.scan_state = tk.StringVar(value="Status: Idle")
         ttk.Label(btn_frame, textvariable=self.scan_state).pack(side='left', padx=(14, 0))
@@ -99,20 +112,42 @@ class ScanTab:
     def start_scan(self):
         """Start scanning for nearby WiFi networks and clients."""
         device = self.get_device()
+
+        timeout_seconds = None
+        if not self.disable_timeout.get():
+            try:
+                timeout_seconds = int(self.scan_timeout.get().strip())
+                if timeout_seconds < 5:
+                    raise ValueError
+            except ValueError:
+                messagebox.showwarning("Invalid Timeout", "Please enter a valid timeout (>= 5 seconds).")
+                return
+
         # Clear previous results
         for item in self.network_tree.get_children():
             self.network_tree.delete(item)
         for item in self.station_tree.get_children():
             self.station_tree.delete(item)
 
-        self.log("Starting network scan...")
+        if timeout_seconds is None:
+            self.log("Starting network scan (auto timeout disabled)...")
+        else:
+            self.log(f"Starting network scan (timeout: {timeout_seconds}s)...")
         self.scan_state.set("Status: Scanning")
         self.scanner.start_scan(
             device,
             on_network_found=self._on_network_found,
             on_station_found=self._on_station_found,
-            on_complete=self._on_scan_complete
+            on_complete=self._on_scan_complete,
+            scan_timeout=timeout_seconds
         )
+
+    def _on_timeout_toggle(self):
+        """Enable or disable timeout input based on auto-timeout switch."""
+        if self.disable_timeout.get():
+            self.timeout_entry.config(state='disabled')
+        else:
+            self.timeout_entry.config(state='normal')
 
     def stop_scan(self):
         """Stop the network scan."""

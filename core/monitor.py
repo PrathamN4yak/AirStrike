@@ -81,7 +81,7 @@ class MonitorController:
             logger.error(f"Error getting device info: {e}")
             return f"Error: {e}"
 
-    def enable_monitor_mode(self, device, log_callback):
+    def enable_monitor_mode(self, device, log_callback, refresh_callback=None):
         """
         Enable monitor mode on the given wireless device.
 
@@ -120,13 +120,18 @@ class MonitorController:
             logger.info(f"Monitor mode enabled on {device}")
             log_callback(f"Monitor mode enabled on {device}")
             time.sleep(2)
+            if refresh_callback:
+                try:
+                    refresh_callback()
+                except Exception as e:
+                    logger.debug(f"Device refresh callback failed: {e}")
             return True
         except Exception as e:
             logger.error(f"Error enabling monitor mode: {e}")
             log_callback(f"Error enabling monitor mode: {e}")
             return False
 
-    def disable_monitor_mode(self, device, log_callback):
+    def disable_monitor_mode(self, device, log_callback, refresh_callback=None):
         """
         Disable monitor mode and return device to managed mode.
         Returns True on success, False on failure.
@@ -151,6 +156,11 @@ class MonitorController:
             self.monitor_mode = False
             logger.info(f"Monitor mode disabled on {device}")
             log_callback(f"Monitor mode disabled on {device}")
+            if refresh_callback:
+                try:
+                    refresh_callback()
+                except Exception as e:
+                    logger.debug(f"Device refresh callback failed: {e}")
             return True
         except Exception as e:
             logger.error(f"Error disabling monitor mode: {e}")

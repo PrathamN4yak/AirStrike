@@ -37,7 +37,7 @@ class NetworkScanner:
         self.scanning = False
         self._scan_thread = None
 
-    def start_scan(self, device, on_network_found, on_station_found, on_complete):
+    def start_scan(self, device, on_network_found, on_station_found, on_complete, scan_timeout=60):
         """
         Start scanning for nearby WiFi networks in a background thread.
 
@@ -46,6 +46,7 @@ class NetworkScanner:
             on_network_found: Callback(bssid, channel, essid, security)
             on_station_found: Callback(station_mac, bssid, power, probes)
             on_complete:      Callback() called when scan finishes
+            scan_timeout:     Maximum scan duration in seconds, or None for no timeout
         """
         if self.scanning:
             return
@@ -56,9 +57,10 @@ class NetworkScanner:
             return
 
         self.scanning = True
+        timeout_seconds = None if scan_timeout is None else max(5, int(scan_timeout))
         self._scan_thread = threading.Thread(
             target=self._scan_worker,
-            args=(device, on_network_found, on_station_found, on_complete),
+            args=(device, on_network_found, on_station_found, on_complete, timeout_seconds),
             daemon=True
         )
         self._scan_thread.start()
@@ -67,10 +69,11 @@ class NetworkScanner:
         """Signal the scan to stop."""
         self.scanning = False
 
-    def _scan_worker(self, device, on_network_found, on_station_found, on_complete):
+    def _scan_worker(self, device, on_network_found, on_station_found, on_complete, scan_timeout):
         """
         Background worker that runs airodump-ng and parses the CSV output.
-        Runs for up to 60 seconds or until stop_scan() is called.
+        Runs for up to scan_timeout seconds, or indefinitely if None,
+        until stop_scan() is called.
         """
         csv_prefix = "/tmp/airstrike_scan"
         csv_path   = f"{csv_prefix}-01.csv"
@@ -99,7 +102,7 @@ class NetworkScanner:
             seen_stations = set()  # Prevent duplicate station entries
             start_time    = time.time()
 
-            while self.scanning and (time.time() - start_time) < 60:
+            while self.scanning and (scan_timeout is None or (time.time() - start_time) < scan_timeout):
                 time.sleep(2)
 
                 if not os.path.exists(csv_path):

@@ -106,17 +106,15 @@ class DeviceTab:
     def enable_monitor(self):
         """Enable monitor mode on the selected device."""
         device = self.get_device()
-        success = self.monitor.enable_monitor_mode(device, self.log)
+        success = self.monitor.enable_monitor_mode(device, self.log, refresh_callback=self.refresh_devices)
         if success:
             self.monitor_status.config(text="Status: ON", foreground='#7ee0a4')
-            self.refresh_devices()
         else:
             messagebox.showerror("Error", "Failed to enable monitor mode.")
 
     def disable_monitor(self):
         """Disable monitor mode on the selected device."""
         device = self.get_device()
-        success = self.monitor.disable_monitor_mode(device, self.log)
+        success = self.monitor.disable_monitor_mode(device, self.log, refresh_callback=self.refresh_devices)
         if success:
             self.monitor_status.config(text="Status: OFF", foreground='#ef6b73')
-            self.refresh_devices()

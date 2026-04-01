@@ -38,6 +38,9 @@ class PasswordCracker:
     def __init__(self):
         self.system = platform.system()
         self.cracking = False
+        self._process = None
+        self._stop_requested = False
+        self._lock = threading.Lock()
 
     def start_cracking(self, handshake_file, attack_type, options, on_result, log_callback, on_complete=None):
         """
@@ -72,6 +75,9 @@ class PasswordCracker:
             messagebox.showerror("Missing Tool", "hashcat not found. Please install hashcat.")
             return False
 
+        with self._lock:
+            self._stop_requested = False
+
         self.cracking = True
         thread = threading.Thread(
             target=self._crack_worker,
@@ -79,6 +85,24 @@ class PasswordCracker:
             daemon=True
         )
         thread.start()
+        return True
+
+    def stop_cracking(self, log_callback=None):
+        """Request stop for the active hashcat process."""
+        with self._lock:
+            if not self.cracking:
+                return False
+            self._stop_requested = True
+            process = self._process
+
+        if process and process.poll() is None:
+            try:
+                process.terminate()
+            except Exception:
+                pass
+
+        if log_callback:
+            log_callback("Stop requested. Ending cracking task...")
         return True
 
     def _crack_worker(self, handshake_file, attack_type, options, on_result, log_callback, on_complete=None):
@@ -99,13 +123,26 @@ class PasswordCracker:
             process = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
+            with self._lock:
+                self._process = process
 
             # Stream output and highlight recovered passwords
             for line in process.stdout:
+                with self._lock:
+                    if self._stop_requested:
+                        break
                 if 'RECOVERED' in line:
                     on_result(line)
                     log_callback("Password found! Check results panel.")
             process.wait()
+
+            with self._lock:
+                stopped = self._stop_requested
+
+            if stopped:
+                on_result("\nCracking stopped by user.\n")
+                log_callback("Cracking stopped.")
+                return
 
             stderr_text = process.stderr.read() if process.stderr else ""
             if stderr_text.strip() and process.returncode not in (0, 1):
@@ -133,10 +170,16 @@ class PasswordCracker:
             logger.info("Cracking completed.")
 
         except Exception as e:
-            log_callback(f"Error during cracking: {e}")
-            logger.error(f"Cracking error: {e}")
-            messagebox.showerror("Error", f"Cracking failed: {e}")
+            with self._lock:
+                stopped = self._stop_requested
+            if not stopped:
+                log_callback(f"Error during cracking: {e}")
+                logger.error(f"Cracking error: {e}")
+                messagebox.showerror("Error", f"Cracking failed: {e}")
         finally:
+            with self._lock:
+                self._process = None
+                self._stop_requested = False
             self.cracking = False
             if on_complete:
                 try:

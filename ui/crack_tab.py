@@ -96,6 +96,9 @@ class CrackTab:
         self.start_button = ttk.Button(self.frame, text="Start Cracking",
                            command=self.start_cracking)
         self.start_button.grid(row=5, column=1, pady=(8, 12), sticky='w')
+        self.stop_button = ttk.Button(self.frame, text="Stop Cracking",
+                   command=self.stop_cracking, state='disabled')
+        self.stop_button.grid(row=5, column=2, pady=(8, 12), sticky='w')
 
         # Results display
         ttk.Label(self.frame, text="Cracking Results:").grid(
@@ -138,11 +141,20 @@ class CrackTab:
 
         if started:
             self.start_button.config(state='disabled')
+            self.stop_button.config(state='normal')
             self.run_status.set("Running")
+
+    def stop_cracking(self):
+        """Stop the active cracking task if one is running."""
+        stopped = self.cracker.stop_cracking(self.log)
+        if stopped:
+            self.stop_button.config(state='disabled')
+            self.run_status.set("Stopping")
 
     def _on_crack_complete(self):
         """Re-enable cracking controls after worker thread exits."""
         self.frame.after(0, lambda: self.start_button.config(state='normal'))
+        self.frame.after(0, lambda: self.stop_button.config(state='disabled'))
         self.frame.after(0, lambda: self.run_status.set("Ready"))
 
     def _append_result(self, text):
