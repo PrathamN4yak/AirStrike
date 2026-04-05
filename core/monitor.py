@@ -156,6 +156,10 @@ class MonitorController:
             self.monitor_mode = False
             logger.info(f"Monitor mode disabled on {device}")
             log_callback(f"Monitor mode disabled on {device}")
+
+            # airmon-ng check kill can stop services; restore common network services.
+            self._restore_network_services(log_callback)
+
             if refresh_callback:
                 try:
                     refresh_callback()
@@ -166,3 +170,42 @@ class MonitorController:
             logger.error(f"Error disabling monitor mode: {e}")
             log_callback(f"Error disabling monitor mode: {e}")
             return False
+
+    def _restore_network_services(self, log_callback):
+        """Best-effort restart of network services after monitor mode session."""
+        if self.system != 'Linux':
+            return
+
+        restarted_any = False
+
+        candidates = [
+            ['systemctl', 'restart', 'NetworkManager'],
+            ['service', 'NetworkManager', 'restart'],
+            ['systemctl', 'restart', 'network-manager'],
+            ['service', 'network-manager', 'restart'],
+            ['systemctl', 'restart', 'wpa_supplicant'],
+            ['service', 'wpa_supplicant', 'restart'],
+            ['nmcli', 'radio', 'wifi', 'on'],
+        ]
+
+        for base_cmd in candidates:
+            if not command_exists(base_cmd[0]):
+                continue
+
+            cmd = build_privileged_cmd(base_cmd)
+            if not cmd:
+                continue
+
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=12)
+                if result.returncode == 0:
+                    restarted_any = True
+            except Exception:
+                continue
+
+        if restarted_any:
+            log_callback("Network services restored.")
+            logger.info("Network services restored after monitor mode.")
+        else:
+            log_callback("Could not auto-restore network services; manual restart may be required.")
+            logger.warning("Automatic network service restore did not succeed.")

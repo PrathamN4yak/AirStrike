@@ -29,6 +29,9 @@ class DeauthAttack:
     def __init__(self):
         self.system = platform.system()
         self._stop_event = threading.Event()
+        self._thread = None
+        self._current_process = None
+        self._lock = threading.Lock()
 
     def send_deauth(self, device, bssid, packet_count, log_callback):
         """
@@ -92,6 +95,10 @@ class DeauthAttack:
         if not validate_device(device): return
         if not validate_bssid(bssid):   return
 
+        if self._thread and self._thread.is_alive():
+            log_callback("Continuous deauth is already running.")
+            return
+
         self._stop_event.clear()
 
         def deauth_loop():
@@ -104,22 +111,57 @@ class DeauthAttack:
                         log_callback("No privilege escalation tool found (sudo/doas).")
                         return
 
-                    subprocess.run(
+                    process = subprocess.Popen(
                         loop_cmd,
                         stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                        timeout=2
+                        stderr=subprocess.DEVNULL
                     )
-                    time.sleep(2)
-                except Exception as e:
-                    log_callback(f"Deauth loop error: {e}")
 
-        threading.Thread(target=deauth_loop, daemon=True).start()
+                    with self._lock:
+                        self._current_process = process
+
+                    while process.poll() is None and not self._stop_event.is_set():
+                        time.sleep(0.2)
+
+                    if self._stop_event.is_set() and process.poll() is None:
+                        try:
+                            process.terminate()
+                            process.wait(timeout=2)
+                        except Exception:
+                            pass
+
+                    with self._lock:
+                        self._current_process = None
+
+                    # Small pause between bursts to avoid overly aggressive spam.
+                    if not self._stop_event.is_set():
+                        time.sleep(1)
+                except Exception as e:
+                    if not self._stop_event.is_set():
+                        log_callback(f"Deauth loop error: {e}")
+
+            with self._lock:
+                self._current_process = None
+
+        self._thread = threading.Thread(target=deauth_loop, daemon=True)
+        self._thread.start()
         log_callback(f"Continuous deauth started on {bssid}")
         logger.info(f"Continuous deauth started on {bssid}")
 
     def stop_continuous_deauth(self, log_callback):
         """Stop the continuous deauth loop."""
+        was_running = self._thread is not None and self._thread.is_alive()
         self._stop_event.set()
-        log_callback("Continuous deauth stopped.")
-        logger.info("Continuous deauth stopped.")
+
+        with self._lock:
+            process = self._current_process
+
+        if process and process.poll() is None:
+            try:
+                process.terminate()
+            except Exception:
+                pass
+
+        if was_running:
+            log_callback("Continuous deauth stopped.")
+            logger.info("Continuous deauth stopped.")
